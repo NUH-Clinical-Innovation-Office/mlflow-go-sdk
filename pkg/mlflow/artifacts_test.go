@@ -58,6 +58,28 @@ func TestLogArtifact_EscapesPathSegments(t *testing.T) {
 	}
 }
 
+func TestLogArtifact_DropsEmptySegments(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := New(Options{TrackingURI: srv.URL})
+	// Leading slash and a doubled slash must not produce "//" in the proxy URL.
+	err := c.LogArtifact(context.Background(), "r1", "/a//b.txt", []byte("hi"))
+	if err != nil {
+		t.Fatalf("LogArtifact: %v", err)
+	}
+	if !strings.HasSuffix(gotPath, "/artifacts/a/b.txt") {
+		t.Errorf("path = %s, want .../artifacts/a/b.txt", gotPath)
+	}
+	if strings.Contains(gotPath, "//artifacts") || strings.Contains(strings.TrimPrefix(gotPath, "/api/2.0/mlflow-artifacts/artifacts/"), "//") {
+		t.Errorf("path contains empty segment: %s", gotPath)
+	}
+}
+
 func TestLogArtifact_APIErrorOnNon2xx(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
