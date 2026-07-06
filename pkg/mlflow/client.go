@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -99,4 +100,8 @@ func decodeAPIError(resp *http.Response) error {
 		ErrorCode:  body.ErrorCode,
 		Message:    body.Message,
 	}
+}
+
+func urlQueryEscape(s string) string {
+	return url.QueryEscape(s)
 }
