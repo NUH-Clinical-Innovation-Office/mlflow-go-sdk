@@ -1,505 +1,150 @@
 # API Reference
 
-## Base URL
+All methods hang off `*mlflow.Client` (from `mlflow.New`), take a
+`context.Context` first, and return `*mlflow.APIError` on any non-2xx response.
 
-```
-http://localhost:8080
-```
+## Construction
 
-## Authentication
+### `New`
 
-Most endpoints require JWT Bearer token authentication:
-
-```
-Authorization: Bearer <token>
+```go
+func New(opts Options) *Client
 ```
 
-Admin endpoints require the `admin` role in the JWT claims.
+`Options` fields:
 
-## Public Endpoints
+| Field | Description |
+|-------|-------------|
+| `TrackingURI` | MLflow server base URL, e.g. `http://localhost:5000`. Trailing slash is trimmed. |
+| `Token` | When non-empty, sent as `Authorization: Bearer <token>` on every request. |
+| `HTTPClient` | Overrides the default client (30s timeout) when non-nil. |
 
-### Health Check
+## Experiments
 
+### `GetExperimentByName`
+
+```go
+func (c *Client) GetExperimentByName(ctx context.Context, name string) (*Experiment, error)
 ```
-GET /health
+
+Returns the named experiment, or an `*APIError` with
+`ErrorCode == "RESOURCE_DOES_NOT_EXIST"` if none exists.
+
+### `CreateExperiment`
+
+```go
+func (c *Client) CreateExperiment(ctx context.Context, name string) (string, error)
 ```
 
-Returns database connectivity status.
+Creates an experiment and returns its ID.
 
-**Response (200 - Healthy):**
-```json
-{
-  "status": "healthy"
+### `GetOrCreateExperiment`
+
+```go
+func (c *Client) GetOrCreateExperiment(ctx context.Context, name string) (*Experiment, error)
+```
+
+Returns the named experiment, creating it if absent. Any error other than
+`RESOURCE_DOES_NOT_EXIST` is returned as-is.
+
+## Runs
+
+### `CreateRun`
+
+```go
+func (c *Client) CreateRun(ctx context.Context, experimentID string, tags []RunTag) (*Run, error)
+```
+
+Starts a run under `experimentID` (status `RUNNING`, `start_time` set to now)
+with optional tags.
+
+### `UpdateRun`
+
+```go
+func (c *Client) UpdateRun(ctx context.Context, runID string, status RunStatus) error
+```
+
+Sets a run's terminal status and `end_time`. Valid statuses:
+`RunStatusRunning`, `RunStatusFinished`, `RunStatusFailed`.
+
+### `SetTag`
+
+```go
+func (c *Client) SetTag(ctx context.Context, runID, key, value string) error
+```
+
+Sets a single key/value tag on a run.
+
+## Params, metrics, batches
+
+### `LogParam`
+
+```go
+func (c *Client) LogParam(ctx context.Context, runID, key, value string) error
+```
+
+Records a single string parameter.
+
+### `LogMetric`
+
+```go
+func (c *Client) LogMetric(ctx context.Context, runID, key string, value float64, step int64) error
+```
+
+Records a single metric value at `step`, stamped with the current time.
+
+### `LogBatch`
+
+```go
+func (c *Client) LogBatch(ctx context.Context, runID string, params []Param, metrics []Metric, tags []RunTag) error
+```
+
+Logs params, metrics, and tags in one call. Metrics with a zero `Timestamp` are
+stamped now. MLflow caps a batch at 1000 metrics, 100 params, and 100 tags — the
+caller must chunk larger sets.
+
+## Artifacts
+
+### `LogArtifact`
+
+```go
+func (c *Client) LogArtifact(ctx context.Context, runID, artifactPath string, content []byte) error
+```
+
+Uploads `content` as a run artifact at `artifactPath` (run-relative) via the
+tracking server's artifact proxy. The server must run with `--serve-artifacts`;
+otherwise this returns an `*APIError`.
+
+## Tracing
+
+### `Traced`
+
+```go
+func (c *Client) Traced(ctx context.Context, runID, name string, enabled bool, fn func(ctx context.Context) error) error
+```
+
+Runs `fn` and, when `enabled`, records its timing (`<name>.duration_ms` metric)
+and outcome (`trace.<name>` tag of `ok`/`error`). When `enabled` is false, calls
+`fn` directly and logs nothing. `fn`'s error is always authoritative: a logging
+failure never hides `fn`'s outcome.
+
+## Errors
+
+Non-2xx responses are returned as `*APIError`:
+
+```go
+type APIError struct {
+    StatusCode int
+    ErrorCode  string
+    Message    string
 }
 ```
 
-**Response (503 - Unhealthy):**
-```json
-{
-  "status": "unhealthy"
+Inspect with `errors.As`:
+
+```go
+var apiErr *mlflow.APIError
+if errors.As(err, &apiErr) && apiErr.ErrorCode == "RESOURCE_DOES_NOT_EXIST" {
+    // ...
 }
 ```
-
-### Root
-
-```
-GET /
-```
-
-Returns API version and status information.
-
-**Response (200):**
-```json
-{
-  "version": "1.0.0",
-  "status": "running"
-}
-```
-
----
-
-## Authentication
-
-### Register
-
-```
-POST /api/v1/auth/register
-```
-
-Register a new user. Only users with pre-approved emails can register. Requires an `approved_id` obtained from an admin.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass123",
-  "approved_id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-**Password Requirements:**
-- Minimum 8 characters
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one digit
-
-**Response (201):**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "token_type": "bearer"
-}
-```
-
-**Errors:**
-- `400` - Invalid request body, invalid password, or invalid approved_id format
-- `404` - Approved user not found
-- `409` - Email already registered
-
----
-
-### Login
-
-```
-POST /api/v1/auth/login
-```
-
-Authenticate and receive a JWT token.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass123"
-}
-```
-
-**Response (200):**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "token_type": "bearer"
-}
-```
-
-**Errors:**
-- `400` - Invalid request body
-- `401` - Invalid credentials
-
----
-
-## User (Authenticated)
-
-### Get Current User
-
-```
-GET /api/v1/me
-```
-
-Get the currently authenticated user's profile.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (200):**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "user@example.com",
-  "first_name": "John",
-  "is_active": true,
-  "roles": ["user"],
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-**Errors:**
-- `401` - Unauthorized (missing or invalid token)
-
----
-
-## Todos
-
-All todo endpoints require authentication. Todos are user-scoped - users can only access their own todos.
-
-### List Todos
-
-```
-GET /api/v1/todos
-```
-
-List all todos for the authenticated user.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (200):**
-```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "user_id": "550e8400-e29b-41d4-a716-446655440001",
-    "title": "Todo title",
-    "description": "Optional description",
-    "is_completed": false,
-    "due_date": "2024-12-31T23:59:59Z",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-]
-```
-
-**Fields:**
-- `due_date` and `description` are nullable (may be `null`)
-
----
-
-### Create Todo
-
-```
-POST /api/v1/todos
-```
-
-Create a new todo for the authenticated user.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "title": "New todo",
-  "description": "Optional description",
-  "due_date": "2024-12-31T23:59:59Z"
-}
-```
-
-**Validation:**
-- `title` is required (max 500 characters)
-- `description` is optional
-- `due_date` is optional (RFC3339 format)
-
-**Response (201):**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "user_id": "550e8400-e29b-41d4-a716-446655440001",
-  "title": "New todo",
-  "description": "Optional description",
-  "is_completed": false,
-  "due_date": "2024-12-31T23:59:59Z",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
-}
-```
-
----
-
-### Get Todo by ID
-
-```
-GET /api/v1/todos/{id}
-```
-
-Get a single todo by ID. Returns 404 if the todo doesn't exist or belongs to another user.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (200):**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "user_id": "550e8400-e29b-41d4-a716-446655440001",
-  "title": "Todo title",
-  "description": "Optional description",
-  "is_completed": false,
-  "due_date": "2024-12-31T23:59:59Z",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
-}
-```
-
-**Errors:**
-- `400` - Invalid UUID format
-- `404` - Todo not found or not owned by user
-
----
-
-### Update Todo
-
-```
-PUT /api/v1/todos/{id}
-```
-
-Update an existing todo.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "title": "Updated title",
-  "description": "Updated description",
-  "is_completed": true,
-  "due_date": "2024-12-31T23:59:59Z"
-}
-```
-
-**Response (200):**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "user_id": "550e8400-e29b-41d4-a716-446655440001",
-  "title": "Updated title",
-  "description": "Updated description",
-  "is_completed": true,
-  "due_date": "2024-12-31T23:59:59Z",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-02T00:00:00Z"
-}
-```
-
-**Errors:**
-- `400` - Invalid UUID format or invalid request body
-- `404` - Todo not found or not owned by user
-
----
-
-### Delete Todo
-
-```
-DELETE /api/v1/todos/{id}
-```
-
-Delete a todo.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (204):** No content
-
-**Errors:**
-- `400` - Invalid UUID format
-- `404` - Todo not found or not owned by user
-
----
-
-## Admin (Admin Role Required)
-
-All admin endpoints require `Authorization: Bearer <token>` with the `admin` role.
-
-### List Approved Users
-
-```
-GET /api/v1/admin/approved-users
-```
-
-List all users in the registration whitelist.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (200):**
-```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "approved@example.com",
-    "first_name": "Jane",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-]
-```
-
----
-
-### Create Approved User
-
-```
-POST /api/v1/admin/approved-users
-```
-
-Add a user to the registration whitelist. New users need the returned `id` as their `approved_id` during registration.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "email": "newuser@example.com",
-  "first_name": "New"
-}
-```
-
-**Validation:**
-- `email` must be valid email format
-- `first_name` is required (letters, spaces, hyphens, apostrophes only)
-
-**Response (201):**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "newuser@example.com",
-  "first_name": "New",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
-}
-```
-
-**Errors:**
-- `400` - Invalid request body
-- `409` - Email already in approved list
-
----
-
-### Bulk Create Approved Users
-
-```
-POST /api/v1/admin/approved-users/bulk
-```
-
-Add multiple users to the registration whitelist in a single request.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "users": [
-    {
-      "email": "user1@example.com",
-      "first_name": "Alice"
-    },
-    {
-      "email": "user2@example.com",
-      "first_name": "Bob"
-    }
-  ]
-}
-```
-
-**Response (201):**
-```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "user1@example.com",
-    "first_name": "Alice",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  },
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440001",
-    "email": "user2@example.com",
-    "first_name": "Bob",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
-]
-```
-
-**Errors:**
-- `400` - Invalid request body or empty users array
-
----
-
-### Delete Approved User
-
-```
-DELETE /api/v1/admin/approved-users/{id}
-```
-
-Remove a user from the registration whitelist.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (204):** No content
-
-**Errors:**
-- `400` - Invalid UUID format
-
----
-
-## Error Response Format
-
-All errors return a JSON body:
-
-```json
-{
-  "error": "Error message here"
-}
-```
-
-Common HTTP status codes:
-- `400` - Bad Request (validation errors, invalid format)
-- `401` - Unauthorized (missing or invalid credentials)
-- `403` - Forbidden (insufficient permissions, e.g. admin role required)
-- `404` - Not Found
-- `409` - Conflict (resource already exists)
-- `500` - Internal Server Error

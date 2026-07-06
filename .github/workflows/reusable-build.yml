@@ -18,12 +18,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Verify generated API code is up to date
-        run: |
-          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
-          make openapi
-          git diff --exit-code internal/api || (echo "internal/api is stale; run 'make openapi' and commit" && exit 1)
-
       - name: Check gofmt
         run: |
           if [ -n "$(gofmt -l .)" ]; then
@@ -54,12 +48,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Verify generated API code is up to date
-        run: |
-          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
-          make openapi
-          git diff --exit-code internal/api || (echo "internal/api is stale; run 'make openapi' and commit" && exit 1)
-
       - name: Run tests
         run: go test -v -race ./...
 
@@ -77,14 +65,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Verify generated API code is up to date
-        run: |
-          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
-          make openapi
-          git diff --exit-code internal/api || (echo "internal/api is stale; run 'make openapi' and commit" && exit 1)
-
-      - name: Build binary
-        run: go build -v -o bin/go-backend-template ./cmd/api
+      - name: Build
+        run: go build -v ./...
 
   security-scan:
     name: Security Scan (Source)

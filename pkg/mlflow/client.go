@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -70,7 +69,16 @@ func (c *Client) doJSON(ctx context.Context, method, apiPath string, body, out a
 	if err != nil {
 		return fmt.Errorf("mlflow: do request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		// Drain any unread body before closing so the underlying TCP
+		// connection returns to the keep-alive pool. Go only reuses a
+		// connection whose body was fully read; without this, an SDK issuing
+		// many small calls (e.g. LogMetric per step) leaks connections.
+		//nolint:errcheck // best-effort drain; a copy error just means the
+		// connection won't be reused, which is not worth surfacing.
+		io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return decodeAPIError(resp)
@@ -104,8 +112,4 @@ func decodeAPIError(resp *http.Response) error {
 		ErrorCode:  body.ErrorCode,
 		Message:    body.Message,
 	}
-}
-
-func urlQueryEscape(s string) string {
-	return url.QueryEscape(s)
 }
