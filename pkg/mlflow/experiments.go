@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 )
 
 // errCodeResourceNotExist is the MLflow API error_code returned when an
@@ -19,9 +20,8 @@ func (c *Client) GetExperimentByName(ctx context.Context, name string) (*Experim
 	var out struct {
 		Experiment Experiment `json:"experiment"`
 	}
-	// MLflow accepts experiment_name as a query param on this GET; sending it
-	// in a JSON body also works and keeps the call site uniform.
-	err := c.doJSON(ctx, http.MethodGet, "experiments/get-by-name?experiment_name="+urlQueryEscape(name), nil, &out)
+	// MLflow expects experiment_name as a query param on this GET.
+	err := c.doJSON(ctx, http.MethodGet, "experiments/get-by-name?experiment_name="+url.QueryEscape(name), nil, &out)
 	if err != nil {
 		return nil, err
 	}
