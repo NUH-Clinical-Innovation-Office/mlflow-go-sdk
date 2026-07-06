@@ -105,13 +105,6 @@ linters:
           - gocyclo
           - unused
           - exhaustive
-      - path: "cmd/migrate/main.go"
-        linters:
-          - staticcheck
-          - gocritic
-      - path: "example/main.go"
-        linters:
-          - goconst
       - source: "^package (http|interfaces|types|main|db|middleware)$"
         linters:
           - revive

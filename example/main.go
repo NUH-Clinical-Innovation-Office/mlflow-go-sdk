@@ -13,6 +13,10 @@ import (
 	"github.com/NUH-Clinical-Innovation-Office/mlflow-go-sdk/pkg/mlflow"
 )
 
+// smoke is the label used throughout this smoke test for run tags, params,
+// and artifact names.
+const smoke = "smoke"
+
 func main() {
 	uri := os.Getenv("MLFLOW_TRACKING_URI")
 	if uri == "" {
@@ -27,16 +31,16 @@ func main() {
 	}
 	fmt.Printf("experiment %s (%s)\n", exp.Name, exp.ExperimentID)
 
-	run, err := c.CreateRun(ctx, exp.ExperimentID, []mlflow.RunTag{{Key: "smoke", Value: "true"}})
+	run, err := c.CreateRun(ctx, exp.ExperimentID, []mlflow.RunTag{{Key: smoke, Value: "true"}})
 	if err != nil {
 		log.Fatalf("create run: %v", err)
 	}
 	fmt.Printf("run %s\n", run.Info.RunID)
 
 	if err := c.LogBatch(ctx, run.Info.RunID,
-		[]mlflow.Param{{Key: "model", Value: "smoke"}},
+		[]mlflow.Param{{Key: "model", Value: smoke}},
 		[]mlflow.Metric{{Key: "value", Value: 1}},
-		[]mlflow.RunTag{{Key: "phase", Value: "smoke"}},
+		[]mlflow.RunTag{{Key: "phase", Value: smoke}},
 	); err != nil {
 		log.Fatalf("log batch: %v", err)
 	}
