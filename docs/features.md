@@ -1,40 +1,34 @@
 # Features
 
-## Core Features
+Scope: the subset of the MLflow 3.x tracking REST API needed by NUH evaluation
+pipelines. Not a comprehensive MLflow SDK.
+
+## Supported
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Chi Router | stable | Lightweight, idiomatic HTTP routing |
-| sqlc | stable | Type-safe SQL code generation from SQL queries |
-| PostgreSQL | stable | Primary database with pgx/v5 driver |
-| JWT Authentication | stable | Secure token-based auth with bcrypt password hashing |
-| Approved Users Gate | stable | Email whitelist for controlled user registration |
-| OpenTelemetry | stable | Distributed tracing with OTLP support |
-| Zap Logging | stable | Structured, high-performance logging |
-| Database Migrations | stable | Using golang-migrate for schema management |
-| Docker Support | stable | Multi-stage builds and docker-compose |
-| CORS Middleware | stable | Cross-origin request handling with configurable origins |
-| Request ID Middleware | stable | Unique request ID per request for tracing |
-| Real IP Middleware | stable | Extracts real client IP from proxy headers |
-| Timeout Middleware | stable | 30-second request timeout |
-| Integration Tests | stable | testcontainers-go for real database testing |
+| Experiments | stable | Get by name, create, get-or-create |
+| Runs | stable | Create (RUNNING), update to terminal status (FINISHED/FAILED) |
+| Params | stable | `LogParam` single string parameter |
+| Metrics | stable | `LogMetric` single stepped/stamped value |
+| Tags | stable | `SetTag` single key/value on a run |
+| Batch logging | stable | `LogBatch` params + metrics + tags in one call |
+| Artifacts | stable | `LogArtifact` via the server's artifact proxy (`--serve-artifacts`) |
+| Per-call tracing | stable | Flag-gated `Traced` wrapper: duration metric + ok/error tag |
+| Bearer auth | stable | Optional `Token` sent as `Authorization: Bearer` |
+| Typed errors | stable | Non-2xx responses returned as `*APIError` |
+| Custom HTTP client | stable | `Options.HTTPClient` override (default 30s timeout) |
+| Keep-alive reuse | stable | Response bodies drained before close for connection reuse |
 
-## API Features
+## Not implemented
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| User Registration | stable | POST /api/v1/auth/register (requires approved_id) |
-| User Login | stable | POST /api/v1/auth/login |
-| Get Current User | stable | GET /api/v1/me |
-| Todo CRUD | stable | Full todo management with user ownership (supports title, description, is_completed, due_date) |
-| Approved Users Admin | stable | Admin management of registration whitelist (single + bulk create) |
+Out of scope for the pipelines this SDK serves. File an issue if needed.
 
-## Planned Features
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Refresh Tokens | planned | JWT refresh token flow |
-| WebSocket Support | planned | Real-time communication |
-| Email Verification | planned | Email-based user verification |
-| Password Reset | planned | Forgotten password flow |
-| Rate Limiting | planned | Configurable rate limiting (config struct exists, not yet wired) |
+| Feature | Notes |
+|---------|-------|
+| Search / list runs | No `runs/search` |
+| Delete / restore runs or experiments | Lifecycle limited to create + terminal update |
+| Metric history retrieval | Write-only; no `metrics/get-history` |
+| Model registry | No registered models / versions |
+| Direct artifact store access | Only the tracking-server artifact proxy is used |
+| Automatic batch chunking | Caller must chunk beyond MLflow's per-batch caps |
