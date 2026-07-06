@@ -1,0 +1,8 @@
+package: api
+output: internal/api/server.gen.go
+generate:
+  chi-server: true
+  embedded-spec: true
+import-mapping: {}
+output-options:
+  skip-prune: true
