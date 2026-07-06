@@ -12,6 +12,8 @@ func nowMillis() int64 { return time.Now().UnixMilli() }
 const (
 	fieldExperimentID = "experiment_id"
 	fieldRunID        = "run_id"
+	fieldKey          = "key"
+	fieldValue        = "value"
 )
 
 // CreateRun starts a new run under experimentID with optional tags.
@@ -44,6 +46,6 @@ func (c *Client) UpdateRun(ctx context.Context, runID string, status RunStatus) 
 
 // SetTag sets a single key/value tag on a run.
 func (c *Client) SetTag(ctx context.Context, runID, key, value string) error {
-	body := map[string]string{fieldRunID: runID, "key": key, "value": value}
+	body := map[string]string{fieldRunID: runID, fieldKey: key, fieldValue: value}
 	return c.doJSON(ctx, http.MethodPost, "runs/set-tag", body, nil)
 }
