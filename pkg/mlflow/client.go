@@ -93,6 +93,10 @@ func decodeAPIError(resp *http.Response) error {
 	if raw, readErr := io.ReadAll(resp.Body); readErr == nil {
 		if unmarshalErr := json.Unmarshal(raw, &body); unmarshalErr != nil {
 			body.Message = string(raw)
+		} else if body.ErrorCode == "" && body.Message == "" {
+			// Valid JSON, but not in the {error_code, message} shape MLflow
+			// normally uses. Fall back to the raw text so it isn't dropped.
+			body.Message = string(raw)
 		}
 	}
 	return &APIError{

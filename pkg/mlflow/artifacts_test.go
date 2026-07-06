@@ -40,6 +40,24 @@ func TestLogArtifact_PutsBytesToProxy(t *testing.T) {
 	}
 }
 
+func TestLogArtifact_EscapesPathSegments(t *testing.T) {
+	var gotEscapedPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotEscapedPath = r.URL.EscapedPath()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := New(Options{TrackingURI: srv.URL})
+	err := c.LogArtifact(context.Background(), "r1", "sub dir/a b.txt", []byte("hi"))
+	if err != nil {
+		t.Fatalf("LogArtifact: %v", err)
+	}
+	if !strings.HasSuffix(gotEscapedPath, "/artifacts/sub%20dir/a%20b.txt") {
+		t.Errorf("escaped path = %s", gotEscapedPath)
+	}
+}
+
 func TestLogArtifact_APIErrorOnNon2xx(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)

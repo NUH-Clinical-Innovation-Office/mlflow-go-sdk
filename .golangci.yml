@@ -93,18 +93,6 @@ linters:
           - goconst
           - gocritic
           - govet
-      - path: "internal/db/migrations"
-        linters:
-          - errcheck
-          - goconst
-      - path: "internal/db/sqlc/"
-        linters:
-          - errcheck
-          - gocritic
-          - goconst
-          - gocyclo
-          - unused
-          - exhaustive
       - source: "^package (http|interfaces|types|main|db|middleware)$"
         linters:
           - revive
