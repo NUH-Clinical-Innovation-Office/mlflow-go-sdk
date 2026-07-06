@@ -1,0 +1,43 @@
+extends:
+  - '@commitlint/config-conventional'
+
+rules:
+  # Enforce lowercase type
+  type-case: [2, 'always', 'lower-case']
+
+  # Allowed types
+  type-enum:
+    - 2
+    - 'always'
+    - - feat
+      - fix
+      - docs
+      - style
+      - refactor
+      - perf
+      - test
+      - chore
+      - ci
+      - build
+      - revert
+
+  # Scope is optional
+  scope-empty: [0, 'never']
+
+  # Scope should be lowercase
+  scope-case: [2, 'always', 'lower-case']
+
+  # Subject should not be empty
+  subject-empty: [2, 'never']
+
+  # Subject should be lowercase
+  subject-case: [2, 'always', 'lower-case']
+
+  # Max header length
+  header-max-length: [2, 'always', 72]
+
+  # Body should have blank line
+  body-leading-blank: [1, 'always']
+
+  # Footer should have blank line
+  footer-leading-blank: [1, 'always']
