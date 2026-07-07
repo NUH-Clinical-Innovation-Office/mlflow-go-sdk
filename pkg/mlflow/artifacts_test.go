@@ -40,6 +40,23 @@ func TestLogArtifact_PutsBytesToProxy(t *testing.T) {
 	}
 }
 
+func TestLogArtifact_SendsBearerWhenTokenSet(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := New(Options{TrackingURI: srv.URL, Token: "pat-token"})
+	if err := c.LogArtifact(context.Background(), "r1", "metrics.json", []byte(`{"acc":0.9}`)); err != nil {
+		t.Fatalf("LogArtifact: %v", err)
+	}
+	if gotAuth != "Bearer pat-token" {
+		t.Errorf("auth = %q, want Bearer pat-token", gotAuth)
+	}
+}
+
 func TestLogArtifact_EscapesPathSegments(t *testing.T) {
 	var gotEscapedPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
