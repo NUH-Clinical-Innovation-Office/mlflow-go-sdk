@@ -44,6 +44,12 @@ func New(opts Options) *Client {
 	}
 }
 
+func (c *Client) setAuthHeader(req *http.Request) {
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+}
+
 // doJSON sends body as JSON to apiPath under /api/2.0/mlflow/ and decodes the
 // response into out (may be nil). Non-2xx responses become *APIError.
 func (c *Client) doJSON(ctx context.Context, method, apiPath string, body, out any) error {
@@ -62,9 +68,7 @@ func (c *Client) doJSON(ctx context.Context, method, apiPath string, body, out a
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	}
+	c.setAuthHeader(req)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("mlflow: do request: %w", err)

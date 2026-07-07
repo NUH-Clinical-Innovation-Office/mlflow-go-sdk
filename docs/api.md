@@ -16,7 +16,7 @@ func New(opts Options) *Client
 | Field | Description |
 |-------|-------------|
 | `TrackingURI` | MLflow server base URL, e.g. `http://localhost:5000`. Trailing slash is trimmed. |
-| `Token` | When non-empty, sent as `Authorization: Bearer <token>` on every request. |
+| `Token` | Optional. When non-empty, sent as `Authorization: Bearer <token>` on every request. Leave empty for unauthenticated MLflow servers. Use Panacea's minted MLflow token for protected `/mlflow` proxy deployments. |
 | `HTTPClient` | Overrides the default client (30s timeout) when non-nil. |
 
 ## Experiments

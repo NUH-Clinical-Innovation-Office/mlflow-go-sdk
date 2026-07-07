@@ -147,14 +147,24 @@ _ = c.Traced(ctx, run.Info.RunID, "judge", false, func(ctx context.Context) erro
 
 ### Authentication
 
+Authentication is optional in the SDK. Plain local MLflow servers usually do
+not require a token, so leave `Token` empty. Protected deployments, such as
+Panacea's `/mlflow` proxy, require a bearer token so Panacea can authenticate
+the caller before forwarding traces, metrics, params, runs, and artifacts to
+MLflow.
+
 Set `Token` to send an `Authorization: Bearer` header on every call:
 
 ```go
 c := mlflow.New(mlflow.Options{
-    TrackingURI: "https://mlflow.internal",
+    TrackingURI: os.Getenv("MLFLOW_TRACKING_URI"),
     Token:       os.Getenv("MLFLOW_TRACKING_TOKEN"),
 })
 ```
+
+For Panacea, mint the MLflow token from the auth service
+(`POST /api/v1/tokens/mlflow`) and pass the returned token as
+`MLFLOW_TRACKING_TOKEN`.
 
 ## API surface
 

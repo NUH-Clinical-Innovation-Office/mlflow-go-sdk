@@ -39,6 +39,26 @@ func TestDoJSON_SendsBearerAndDecodesBody(t *testing.T) {
 	}
 }
 
+func TestDoJSON_OmitsBearerWhenTokenEmpty(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		_ = json.NewEncoder(w).Encode(map[string]string{"experiment_id": "42"})
+	}))
+	defer srv.Close()
+
+	c := New(Options{TrackingURI: srv.URL})
+	var out struct {
+		ExperimentID string `json:"experiment_id"`
+	}
+	if err := c.doJSON(context.Background(), http.MethodPost, "experiments/create", map[string]string{"name": "x"}, &out); err != nil {
+		t.Fatalf("doJSON: %v", err)
+	}
+	if gotAuth != "" {
+		t.Errorf("auth = %q, want empty", gotAuth)
+	}
+}
+
 func TestDoJSON_DecodesAPIError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
