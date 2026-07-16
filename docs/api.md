@@ -19,6 +19,16 @@ func New(opts Options) *Client
 | `Token` | Optional. When non-empty, sent as `Authorization: Bearer <token>` on every request. Leave empty for unauthenticated MLflow servers. Use Panacea's minted MLflow token for protected `/mlflow` proxy deployments. |
 | `HTTPClient` | Overrides the default client (30s timeout) when non-nil. |
 
+Every tracking and artifact request includes:
+
+- `User-Agent: mlflow-go-client/<version>`
+- `X-MLflow-Client-Version: <version>`
+- `Authorization: Bearer <token>` when `Token` is non-empty
+
+The explicit user agent is required by protected reverse proxies that reject
+Go's generic `Go-http-client/2.0` default before forwarding the request to
+MLflow.
+
 ## Experiments
 
 ### `GetExperimentByName`

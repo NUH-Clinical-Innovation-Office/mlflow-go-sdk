@@ -9,11 +9,13 @@ import (
 )
 
 func TestDoJSON_SendsBearerAndDecodesBody(t *testing.T) {
-	var gotAuth, gotPath, gotMethod string
+	var gotAuth, gotPath, gotMethod, gotUserAgent, gotClientVersion string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotPath = r.URL.Path
 		gotMethod = r.Method
+		gotUserAgent = r.Header.Get("User-Agent")
+		gotClientVersion = r.Header.Get("X-MLflow-Client-Version")
 		_ = json.NewEncoder(w).Encode(map[string]string{"experiment_id": "42"})
 	}))
 	defer srv.Close()
@@ -33,6 +35,12 @@ func TestDoJSON_SendsBearerAndDecodesBody(t *testing.T) {
 	}
 	if gotMethod != http.MethodPost {
 		t.Errorf("method = %q", gotMethod)
+	}
+	if gotUserAgent != userAgent {
+		t.Errorf("user-agent = %q, want %q", gotUserAgent, userAgent)
+	}
+	if gotClientVersion != clientVersion {
+		t.Errorf("client version = %q, want %q", gotClientVersion, clientVersion)
 	}
 	if out.ExperimentID != "42" {
 		t.Errorf("experiment_id = %q", out.ExperimentID)

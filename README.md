@@ -166,6 +166,12 @@ For Panacea, mint the MLflow token from the auth service
 (`POST /api/v1/tokens/mlflow`) and pass the returned token as
 `MLFLOW_TRACKING_TOKEN`.
 
+The SDK identifies every tracking and artifact request as
+`mlflow-go-client/<version>`. This avoids protected reverse proxies treating
+Go's generic `Go-http-client/2.0` default as an unsupported automated client
+and returning an HTML `403 Forbidden` before MLflow can validate the bearer
+token.
+
 ## API surface
 
 | Method | MLflow endpoint |

@@ -41,9 +41,11 @@ func TestLogArtifact_PutsBytesToProxy(t *testing.T) {
 }
 
 func TestLogArtifact_SendsBearerWhenTokenSet(t *testing.T) {
-	var gotAuth string
+	var gotAuth, gotUserAgent, gotClientVersion string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
+		gotUserAgent = r.Header.Get("User-Agent")
+		gotClientVersion = r.Header.Get("X-MLflow-Client-Version")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
@@ -54,6 +56,12 @@ func TestLogArtifact_SendsBearerWhenTokenSet(t *testing.T) {
 	}
 	if gotAuth != "Bearer pat-token" {
 		t.Errorf("auth = %q, want Bearer pat-token", gotAuth)
+	}
+	if gotUserAgent != userAgent {
+		t.Errorf("user-agent = %q, want %q", gotUserAgent, userAgent)
+	}
+	if gotClientVersion != clientVersion {
+		t.Errorf("client version = %q, want %q", gotClientVersion, clientVersion)
 	}
 }
 

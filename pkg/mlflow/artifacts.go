@@ -38,7 +38,7 @@ func (c *Client) LogArtifact(ctx context.Context, runID, artifactPath string, co
 		return fmt.Errorf("mlflow: new artifact request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
-	c.setAuthHeader(req)
+	c.setRequestHeaders(req)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("mlflow: upload artifact: %w", err)

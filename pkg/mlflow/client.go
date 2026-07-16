@@ -12,7 +12,11 @@ import (
 	"time"
 )
 
-const apiPrefix = "/api/2.0/mlflow/"
+const (
+	apiPrefix     = "/api/2.0/mlflow/"
+	clientVersion = "0.2.1"
+	userAgent     = "mlflow-go-client/" + clientVersion
+)
 
 // Options configures a Client.
 type Options struct {
@@ -44,7 +48,12 @@ func New(opts Options) *Client {
 	}
 }
 
-func (c *Client) setAuthHeader(req *http.Request) {
+func (c *Client) setRequestHeaders(req *http.Request) {
+	// Identify SDK traffic explicitly. Some reverse proxies reject Go's
+	// generic default User-Agent ("Go-http-client/2.0") before the request
+	// reaches MLflow, even when the bearer token is valid.
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("X-MLflow-Client-Version", clientVersion)
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -68,7 +77,7 @@ func (c *Client) doJSON(ctx context.Context, method, apiPath string, body, out a
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	c.setAuthHeader(req)
+	c.setRequestHeaders(req)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("mlflow: do request: %w", err)
