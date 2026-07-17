@@ -61,7 +61,18 @@ func (c *Client) LogArtifact(ctx context.Context, runID, artifactPath string, co
 	if root, ok := proxyRootFromArtifactURI(run.Info.ArtifactURI); ok && root != "" {
 		fullPath = escapeArtifactPath(root) + "/" + fullPath
 	}
-	u := c.trackingURI + artifactProxyPrefix + fullPath + "?run_id=" + url.QueryEscape(runID)
+	return c.putArtifact(ctx, fullPath, "run_id="+url.QueryEscape(runID), content)
+}
+
+// putArtifact PUTs content to the artifact proxy at proxyRelPath (already
+// escaped, relative to the proxy prefix). rawQuery is appended verbatim (may be
+// empty). Non-2xx responses become *APIError. Shared by LogArtifact (run
+// artifacts) and LogTrace (the traces.json trace artifact).
+func (c *Client) putArtifact(ctx context.Context, proxyRelPath, rawQuery string, content []byte) error {
+	u := c.trackingURI + artifactProxyPrefix + proxyRelPath
+	if rawQuery != "" {
+		u += "?" + rawQuery
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(content))
 	if err != nil {
 		return fmt.Errorf("mlflow: new artifact request: %w", err)
