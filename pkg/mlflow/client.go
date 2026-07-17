@@ -14,7 +14,7 @@ import (
 
 const (
 	apiPrefix     = "/api/2.0/mlflow/"
-	clientVersion = "0.2.2"
+	clientVersion = "0.3.1"
 	userAgent     = "mlflow-go-client/" + clientVersion
 )
 
