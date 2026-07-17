@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -111,13 +113,9 @@ func (c *Client) startTraceV3(ctx context.Context, p *LogTraceParams, traceID st
 		"mlflow.traceInputs":  truncateRunes(string(inputsJSON), previewMaxChars),
 		"mlflow.traceOutputs": truncateRunes(string(outputsJSON), previewMaxChars),
 	}
-	for k, v := range p.Metadata {
-		metadata[k] = v
-	}
+	maps.Copy(metadata, p.Metadata)
 	tags := map[string]string{"mlflow.traceName": p.Name}
-	for k, v := range p.Tags {
-		tags[k] = v
-	}
+	maps.Copy(tags, p.Tags)
 
 	traceInfo := map[string]any{
 		"trace_id": traceID,
@@ -199,7 +197,15 @@ func (c *Client) doTraceJSON(ctx context.Context, method, apiPath string, body, 
 	if err != nil {
 		return fmt.Errorf("mlflow: do request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		// Drain any unread body before closing so the connection returns to the
+		// keep-alive pool cleanly. Without this, a partially-read response (e.g.
+		// json.Decoder stops at the first value) leaves the pooled connection in
+		// a bad state and the next request on it can be rejected mid-stream.
+		//nolint:errcheck // best-effort drain; a copy error just prevents reuse.
+		io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return decodeAPIError(resp)
 	}
