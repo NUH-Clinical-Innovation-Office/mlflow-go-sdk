@@ -83,7 +83,8 @@ sequenceDiagram
     M->>S: runs/log-batch, runs/log-metric, ...
 
     C->>M: LogArtifact(runID, path, bytes)
-    M->>S: mlflow-artifacts/artifacts/... (PUT)
+    M->>S: runs/get (resolve artifact_uri)
+    M->>S: mlflow-artifacts/artifacts/<run-root>/... (PUT)
 
     C->>M: UpdateRun(runID, FINISHED)
     M->>S: runs/update (end_time set)
@@ -180,12 +181,13 @@ token.
 | `CreateExperiment` | `experiments/create` |
 | `GetOrCreateExperiment` | get-by-name, then create if absent |
 | `CreateRun` | `runs/create` |
+| `GetRun` | `runs/get` |
 | `UpdateRun` | `runs/update` |
 | `SetTag` | `runs/set-tag` |
 | `LogParam` | `runs/log-parameter` |
 | `LogMetric` | `runs/log-metric` |
 | `LogBatch` | `runs/log-batch` |
-| `LogArtifact` | `mlflow-artifacts/artifacts/...` (proxy) |
+| `LogArtifact` | `runs/get` then `mlflow-artifacts/artifacts/<run-root>/...` (proxy) |
 | `Traced` | wraps `LogMetric` + `SetTag` |
 
 Non-2xx responses are returned as `*mlflow.APIError` (carrying `StatusCode`,

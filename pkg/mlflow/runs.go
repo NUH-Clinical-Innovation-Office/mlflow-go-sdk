@@ -3,6 +3,7 @@ package mlflow
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -29,6 +30,17 @@ func (c *Client) CreateRun(ctx context.Context, experimentID string, tags []RunT
 		Run Run `json:"run"`
 	}
 	if err := c.doJSON(ctx, http.MethodPost, "runs/create", body, &out); err != nil {
+		return nil, err
+	}
+	return &out.Run, nil
+}
+
+// GetRun fetches a run by ID, including its resolved artifact_uri.
+func (c *Client) GetRun(ctx context.Context, runID string) (*Run, error) {
+	var out struct {
+		Run Run `json:"run"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "runs/get?"+fieldRunID+"="+url.QueryEscape(runID), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out.Run, nil

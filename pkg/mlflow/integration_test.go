@@ -86,7 +86,22 @@ func (f *fakeMLflow) handler() http.Handler {
 			f.tags[runID][t.Key] = t.Value
 		}
 		f.mu.Unlock()
-		writeJSON(w, map[string]any{"run": Run{Info: RunInfo{RunID: runID, ExperimentID: body.ExperimentID, Status: "RUNNING"}}})
+		writeJSON(w, map[string]any{"run": Run{Info: RunInfo{
+			RunID: runID, ExperimentID: body.ExperimentID, Status: "RUNNING",
+			ArtifactURI: "mlflow-artifacts:/" + body.ExperimentID + "/" + runID + "/artifacts",
+		}}})
+	})
+
+	mux.HandleFunc("/api/2.0/mlflow/runs/get", func(w http.ResponseWriter, r *http.Request) {
+		f.record(r.URL.Path)
+		runID := r.URL.Query().Get("run_id")
+		f.mu.Lock()
+		status := f.runs[runID]
+		f.mu.Unlock()
+		writeJSON(w, map[string]any{"run": Run{Info: RunInfo{
+			RunID: runID, Status: status,
+			ArtifactURI: "mlflow-artifacts:/1/" + runID + "/artifacts",
+		}}})
 	})
 
 	mux.HandleFunc("/api/2.0/mlflow/runs/update", func(w http.ResponseWriter, r *http.Request) {
@@ -256,7 +271,7 @@ func TestIntegration_FullRunLifecycle(t *testing.T) {
 	if fake.tags[runID]["trace.inference"] != "ok" {
 		t.Errorf("trace tag = %q, want ok", fake.tags[runID]["trace.inference"])
 	}
-	if got := string(fake.artifacts[runID+"/reports/summary.json"]); got != `{"ok":true}` {
+	if got := string(fake.artifacts[runID+"/1/"+runID+"/artifacts/reports/summary.json"]); got != `{"ok":true}` {
 		t.Errorf("artifact = %q", got)
 	}
 

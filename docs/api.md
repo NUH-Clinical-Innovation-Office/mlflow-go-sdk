@@ -68,6 +68,15 @@ func (c *Client) CreateRun(ctx context.Context, experimentID string, tags []RunT
 Starts a run under `experimentID` (status `RUNNING`, `start_time` set to now)
 with optional tags.
 
+### `GetRun`
+
+```go
+func (c *Client) GetRun(ctx context.Context, runID string) (*Run, error)
+```
+
+Fetches a run by ID, including its resolved `artifact_uri`. `LogArtifact` uses
+this internally to place uploads under the run's own artifact subtree.
+
 ### `UpdateRun`
 
 ```go
@@ -122,8 +131,13 @@ func (c *Client) LogArtifact(ctx context.Context, runID, artifactPath string, co
 ```
 
 Uploads `content` as a run artifact at `artifactPath` (run-relative) via the
-tracking server's artifact proxy. The server must run with `--serve-artifacts`;
-otherwise this returns an `*APIError`.
+tracking server's artifact proxy. It first calls `GetRun` to resolve the run's
+`artifact_uri` and prepends that proxy root, so the upload lands under the run's
+own artifact subtree (what the MLflow UI's Artifacts tab lists). Without this the
+proxy would write to the server's artifact root and the run would show no
+artifacts. If the run's `artifact_uri` is not a `mlflow-artifacts:` proxy URI
+(e.g. `s3://`, `file://`), the bare `artifactPath` is used unchanged. The server
+must run with `--serve-artifacts`; otherwise this returns an `*APIError`.
 
 ## Tracing
 

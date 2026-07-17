@@ -28,11 +28,40 @@ func escapeArtifactPath(artifactPath string) string {
 	return strings.Join(escaped, "/")
 }
 
+// proxyRootFromArtifactURI extracts the artifact-proxy path from a run's
+// artifact_uri. MLflow returns proxy roots like
+// "mlflow-artifacts:/<exp>/<run>/artifacts" or, with an explicit authority,
+// "mlflow-artifacts://<host>/<exp>/<run>/artifacts". The proxy PUT endpoint is
+// keyed by this path relative to the server's artifact root, so we return just
+// the path portion (e.g. "<exp>/<run>/artifacts"). Any non-proxy scheme (s3://,
+// file://, ...) means the server does not proxy this run's artifacts, so the
+// caller falls back to the bare path.
+func proxyRootFromArtifactURI(artifactURI string) (string, bool) {
+	u, err := url.Parse(artifactURI)
+	if err != nil || u.Scheme != "mlflow-artifacts" {
+		return "", false
+	}
+	// u.Host is the optional authority; it names the same tracking server we
+	// already target, so only the path matters for the proxy request.
+	return strings.Trim(u.Path, "/"), true
+}
+
 // LogArtifact uploads content as a run artifact at artifactPath (run-relative),
-// via the tracking server's artifact proxy. The server must run with
-// --serve-artifacts; otherwise this returns an *APIError.
+// via the tracking server's artifact proxy. It first resolves the run's
+// artifact_uri so the upload lands under the run's own artifact subtree (what
+// the MLflow UI lists); without this the proxy would write to the server
+// artifact root and the run's Artifacts tab would appear empty. The server must
+// run with --serve-artifacts; otherwise this returns an *APIError.
 func (c *Client) LogArtifact(ctx context.Context, runID, artifactPath string, content []byte) error {
-	u := c.trackingURI + artifactProxyPrefix + escapeArtifactPath(artifactPath) + "?run_id=" + url.QueryEscape(runID)
+	run, err := c.GetRun(ctx, runID)
+	if err != nil {
+		return fmt.Errorf("mlflow: resolve run artifact root: %w", err)
+	}
+	fullPath := escapeArtifactPath(artifactPath)
+	if root, ok := proxyRootFromArtifactURI(run.Info.ArtifactURI); ok && root != "" {
+		fullPath = escapeArtifactPath(root) + "/" + fullPath
+	}
+	u := c.trackingURI + artifactProxyPrefix + fullPath + "?run_id=" + url.QueryEscape(runID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(content))
 	if err != nil {
 		return fmt.Errorf("mlflow: new artifact request: %w", err)

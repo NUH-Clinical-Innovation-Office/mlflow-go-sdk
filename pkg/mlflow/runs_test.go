@@ -9,6 +9,37 @@ import (
 	"testing"
 )
 
+func TestGetRun_FetchesArtifactURI(t *testing.T) {
+	var gotMethod, gotPath, gotRunID string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotRunID = r.URL.Query().Get("run_id")
+		_ = json.NewEncoder(w).Encode(map[string]any{"run": map[string]any{"info": map[string]string{
+			"run_id": "r1", "artifact_uri": "mlflow-artifacts:/11/r1/artifacts",
+		}}})
+	}))
+	defer srv.Close()
+
+	c := New(Options{TrackingURI: srv.URL})
+	run, err := c.GetRun(context.Background(), "r1")
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if gotMethod != http.MethodGet {
+		t.Errorf("method = %q, want GET", gotMethod)
+	}
+	if gotPath != "/api/2.0/mlflow/runs/get" {
+		t.Errorf("path = %q", gotPath)
+	}
+	if gotRunID != "r1" {
+		t.Errorf("run_id query = %q", gotRunID)
+	}
+	if run.Info.ArtifactURI != "mlflow-artifacts:/11/r1/artifacts" {
+		t.Errorf("artifact_uri = %q", run.Info.ArtifactURI)
+	}
+}
+
 func TestCreateRun_SendsExperimentAndTags(t *testing.T) {
 	var reqBody map[string]any
 	var gotMethod, gotPath string
