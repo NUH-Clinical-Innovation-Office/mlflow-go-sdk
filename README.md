@@ -126,6 +126,25 @@ run-relative; nested paths are created as needed.
 err := c.LogArtifact(ctx, run.Info.RunID, "reports/summary.json", []byte(`{"ok":true}`))
 ```
 
+### Log a native trace with full span I/O
+
+`LogTrace` records one trace with a single root span so a call's full input and
+output are visible in the MLflow trace UI. It creates the trace (StartTraceV3),
+then uploads the span data as the `traces.json` artifact — trace metadata values
+are capped at 8000 chars server-side, so the full untruncated I/O lives in the
+span artifact while only a short preview goes in metadata.
+
+```go
+id, err := c.LogTrace(ctx, mlflow.LogTraceParams{
+    ExperimentID: exp.ExperimentID,
+    Name:         "Patient 1",
+    SpanType:     "LLM",
+    Inputs:       map[string]any{"messages": messages}, // full input
+    Outputs:      map[string]any{"messages": reply},     // full output
+    Metadata:     map[string]string{"mlflow.sourceRun": run.Info.RunID},
+})
+```
+
 ### Per-call tracing (flag-gated)
 
 Go has no decorators; `Traced` is the idiomatic equivalent — wrap a call and
@@ -188,6 +207,7 @@ token.
 | `LogMetric` | `runs/log-metric` |
 | `LogBatch` | `runs/log-batch` |
 | `LogArtifact` | `runs/get` then `mlflow-artifacts/artifacts/<run-root>/...` (proxy) |
+| `LogTrace` | `3.0/mlflow/traces` (StartTraceV3) then `mlflow-artifacts/artifacts/<exp>/traces/<id>/artifacts/traces.json` |
 | `Traced` | wraps `LogMetric` + `SetTag` |
 
 Non-2xx responses are returned as `*mlflow.APIError` (carrying `StatusCode`,
