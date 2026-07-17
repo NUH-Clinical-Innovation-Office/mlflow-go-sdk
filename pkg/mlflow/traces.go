@@ -53,9 +53,8 @@ type LogTraceParams struct {
 // server's 8000-char metadata limit. Returns the trace id (server-echoed when
 // available, else the client-supplied/generated one). On a StartTraceV3 failure
 // no artifact is uploaded; an artifact failure is returned with the step named.
-// heavy-struct copy is negligible next to two network round-trips.
 //
-//nolint:gocritic // by-value params struct is the ergonomic public API; the
+//nolint:gocritic // by-value params struct is the ergonomic public API; the heavy-struct copy is negligible next to two network round-trips.
 func (c *Client) LogTrace(ctx context.Context, p LogTraceParams) (string, error) {
 	return c.logTrace(ctx, &p)
 }
