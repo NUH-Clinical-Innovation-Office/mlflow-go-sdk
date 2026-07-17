@@ -186,6 +186,19 @@ For Panacea, mint the MLflow token from the auth service
 (`POST /api/v1/tokens/mlflow`) and pass the returned token as
 `MLFLOW_TRACKING_TOKEN`.
 
+### Custom HTTP client
+
+By default the SDK uses an `http.Client` with a 30s timeout. Set
+`Options.HTTPClient` to supply your own — e.g. a longer timeout for large
+artifacts, a custom transport, or a proxy:
+
+```go
+c := mlflow.New(mlflow.Options{
+    TrackingURI: os.Getenv("MLFLOW_TRACKING_URI"),
+    HTTPClient:  &http.Client{Timeout: 2 * time.Minute},
+})
+```
+
 The SDK identifies every tracking and artifact request as
 `mlflow-go-client/<version>`. This avoids protected reverse proxies treating
 Go's generic `Go-http-client/2.0` default as an unsupported automated client
@@ -232,3 +245,21 @@ make example  # live smoke test (needs MLFLOW_TRACKING_URI)
 ```
 
 See `example/` for a full runnable smoke test.
+
+## Releases
+
+Releases are automated with [semantic-release](https://semantic-release.gitbook.io/).
+Merging to `main` runs CI, then computes the next version from the
+[Conventional Commit](https://www.conventionalcommits.org/) types since the last
+tag:
+
+| Commit type | Bump |
+|-------------|------|
+| `fix:` | patch (`x.y.Z`) |
+| `feat:` | minor (`x.Y.0`) |
+| `feat!:` / `BREAKING CHANGE:` | major (`X.0.0`) |
+
+The pipeline then tags `vX.Y.Z`, writes `CHANGELOG.md`, syncs the
+`clientVersion` constant in `pkg/mlflow/client.go` (so the `User-Agent` matches
+the tag), and publishes a GitHub Release. No manual version bumping — commit
+messages drive the version.
