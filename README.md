@@ -248,8 +248,7 @@ See `example/` for a full runnable smoke test.
 
 ## Releases
 
-Releases are automated with [semantic-release](https://semantic-release.gitbook.io/).
-Merging to `main` runs CI, then computes the next version from the
+Releases are cut manually. Pick the next version from the
 [Conventional Commit](https://www.conventionalcommits.org/) types since the last
 tag:
 
@@ -259,7 +258,20 @@ tag:
 | `feat:` | minor (`x.Y.0`) |
 | `feat!:` / `BREAKING CHANGE:` | major (`X.0.0`) |
 
-The pipeline then tags `vX.Y.Z`, writes `CHANGELOG.md`, syncs the
-`clientVersion` constant in `pkg/mlflow/client.go` (so the `User-Agent` matches
-the tag), and publishes a GitHub Release. No manual version bumping — commit
-messages drive the version.
+Then, from a clean `main`:
+
+```bash
+# 1. sync the version constant so the User-Agent matches the tag
+#    edit clientVersion in pkg/mlflow/client.go to the new version
+git commit -am "chore(release): v0.4.0"
+git push
+
+# 2. tag and publish (uses your account, not the CI token)
+git tag v0.4.0
+git push origin v0.4.0
+gh release create v0.4.0 --generate-notes
+```
+
+`--generate-notes` builds the changelog from the conventional commits since the
+last tag. Keep `clientVersion` in `pkg/mlflow/client.go` in step with the tag —
+it is sent as the `User-Agent`.
