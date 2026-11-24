@@ -36,7 +36,7 @@ This project uses [lefthook](https://github.com/evilmartians/lefthook) for manag
 
 ### Required Tools
 
-- Go 1.26+
+- Go 1.27.4+
 - golangci-lint
 - sqlc v1.28.0+
 - golang-migrate
